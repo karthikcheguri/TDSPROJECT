@@ -1,0 +1,37 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "main.py",
+        "use": "@vercel/python",
+        "config": {
+          "runtime": "python3.9",
+          "wsgi": {
+            "app": "app"
+          },
+          "includeFiles": ["templates/**", "static/**", "data/**"]
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api",
+        "dest": "main.py",
+        "methods": ["POST"]
+      },
+      {
+        "src": "/ui",
+        "dest": "main.py",
+        "methods": ["GET"]
+      },
+      {
+        "src": "/",
+        "dest": "main.py",
+        "methods": ["GET"]
+      },
+      {
+        "src": "/static/(.*)",
+        "dest": "/static/$1"
+      }
+    ]
+  }
