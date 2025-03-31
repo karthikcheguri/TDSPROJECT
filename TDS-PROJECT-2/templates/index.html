@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Solver AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                    mono: ['JetBrains Mono', 'monospace']
+                },
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#6d28d9',
+                            dark: '#5b21b6'
+                        },
+                        secondary: '#06b6d4',
+                        dark: {
+                            DEFAULT: '#0f172a',
+                            card: '#1e293b',
+                            light: '#334155'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .bg-gradient-animate {
+            background: linear-gradient(270deg, #6d28d9, #06b6d4);
+            background-size: 200% 200%;
+            animation: gradient 8s ease infinite;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+        .spinner:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #6d28d9;
+            border-color: #6d28d9 transparent #6d28d9 transparent;
+            animation: spinner 1.2s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #6d28d9;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5b21b6;
+        }
+        
+        /* Markdown-like styling for results */
+        .result-content h1, .result-content h2, .result-content h3 {
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        .result-content h1 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 0.3em;
+        }
+        .result-content h2 {
+            font-size: 1.3em;
+        }
+        .result-content h3 {
+            font-size: 1.1em;
+        }
+        .result-content p {
+            margin-bottom: 1em;
+            line-height: 1.6;
+        }
+        .result-content pre {
+            background: #1e293b;
+            padding: 1em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            margin: 1em 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+        }
+        .result-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #1e293b;
+            padding: 0.2em 0.4em;
+            border-radius: 0.3em;
+            font-size: 0.9em;
+        }
+        .result-content ul, .result-content ol {
+            margin-left: 1.5em;
+            margin-bottom: 1em;
+        }
+        .result-content li {
+            margin-bottom: 0.5em;
+        }
+        .result-content a {
+            color: #06b6d4;
+            text-decoration: none;
+        }
+        .result-content a:hover {
+            text-decoration: underline;
+        }
+        .result-content blockquote {
+            border-left: 4px solid #6d28d9;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-dark text-slate-100 min-h-screen font-sans">
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <div class="w-full md:w-64 bg-dark-card border-r border-slate-800 flex flex-col">
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-animate p-2 rounded-lg">
+                        <i class="bi bi-robot text-white text-xl"></i>
+                    </div>
+                    <h1 class="text-xl font-bold">TASK SOLVER</h1>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4">
+                <div class="mb-8">
+                    <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">History</h3>
+                    <div id="recentResults" class="space-y-3">
+                        <div class="text-center text-slate-500 py-8">
+                            <i class="bi bi-clock-history text-2xl block mb-2"></i>
+                            <p class="text-sm">Your history will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-800 mt-auto">
+                <div class="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
+                    <div class="h-10 w-10 rounded-full bg-gradient-animate flex items-center justify-center">
+                        <span class="text-sm font-bold">CK</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium">Karthik</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-dark-card border-b border-slate-800 py-4 px-6">
+                <h2 class="text-lg font-semibold">Task Assistant</h2>
+            </header>
+            
+            <!-- Main Area -->
+            <main class="flex-1 overflow-y-auto p-6 bg-dark">
+                <div class="max-w-3xl mx-auto">
+                    <!-- Welcome Card -->
+                    <div class="bg-gradient-to-r from-primary to-primary-dark rounded-xl p-6 mb-8 animate__animated animate__fadeIn">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-white bg-opacity-20 p-3 rounded-full">
+                                <i class="bi bi-stars text-white text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Welcome to Task Solver</h2>
+                                <p class="text-slate-200">Ask anything about data Graded Assignments</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Question Form Card -->
+                    <div class="bg-dark-card rounded-xl shadow-lg mb-8 overflow-hidden border border-slate-800">
+                        <div class="p-6">
+                            <form id="questionForm" class="space-y-6">
+                                <div>
+                                    <label for="question" class="block text-sm font-medium text-slate-300 mb-2">
+                                        Your Question
+                                    </label>
+                                    <textarea 
+                                        id="question" 
+                                        rows="5" 
+                                        class="w-full bg-slate-800 text-white rounded-lg border border-slate-700 p-4 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50 font-medium"
+                                        placeholder="E.g., 'How to implement linear regression in Python?'"
+                                        required
+                                    ></textarea>
+                                    <p class="text-xs text-slate-500 mt-2 flex items-center">
+                                        <i class="bi bi-lightning-fill text-yellow-400 mr-1"></i> Pro tip: Press Ctrl+Enter to submit
+                                    </p>
+                                </div>
+                                
+                                <!-- File Input with Tabs -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="block text-sm font-medium text-slate-300">
+                                            Attach Files (Optional)
+                                        </label>
+                                        <div class="flex space-x-1 bg-slate-800 p-1 rounded-lg">
+                                            <button type="button" id="upload-tab" class="px-3 py-1 text-sm rounded-md text-white bg-primary">
+                                                Upload
+                                            </button>
+                                            <button type="button" id="url-tab" class="px-3 py-1 text-sm rounded-md text-slate-300 hover:bg-slate-700">
+                                                URL
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="upload-tab-pane">
+                                        <div class="flex items-center justify-center w-full">
+                                            <label for="file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-700 border-dashed rounded-lg cursor-pointer bg-slate-800 hover:bg-slate-700/50 transition-colors">
+                                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    <i class="bi bi-cloud-arrow-up text-2xl text-slate-400 mb-2"></i>
+                                                    <p class="mb-2 text-sm text-slate-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                                    <p class="text-xs text-slate-500">CSV, Excel, Images (MAX. 10MB)</p>
+                                                </div>
+                                                <input id="file" type="file" class="hidden" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="url-tab-pane" class="hidden">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="bi bi-link-45deg text-slate-500"></i>
+                                            </div>
+                                            <input
+                                                type="url"
+                                                id="fileUrl"
+                                                class="w-full bg-slate-800 text-white rounded-lg border border-slate-700 pl-10 p-3 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50"
+                                                placeholder="https://example.com/data.csv"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex flex-wrap gap-3">
+                                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-primary to-primary-dark text-white rounded-lg font-medium hover:shadow-lg transition-all hover:opacity-90 flex items-center">
+                                        <i class="bi bi-send-fill mr-2"></i> Ask 
+                                    </button>
+                                    <button type="button" id="generateCurl" class="px-6 py-3 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-all flex items-center">
+                                        <i class="bi bi-terminal mr-2"></i> Generate cURL
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <!-- Loading Indicator -->
+                            <div id="loading" class="hidden text-center my-8">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="spinner mb-4"></div>
+                                    <p class="text-slate-300 mb-2">Processing your request</p>
+                                    <p class="text-sm text-slate-500"> Analyzing ...</p>
+                                </div>
+                            </div>
+                            
+                            <!-- cURL Command -->
+                            <div id="curlCommandDiv" class="hidden mt-8">
+                                <div class="flex items-center mb-3">
+                                    <i class="bi bi-terminal text-secondary mr-2"></i>
+                                    <h3 class="text-lg font-medium">API Request</h3>
+                                </div>
+                                <div class="relative">
+                                    <button id="copyBtn" class="absolute right-3 top-3 text-xs px-2 py-1 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 transition-colors flex items-center">
+                                        <i class="bi bi-clipboard mr-1"></i> Copy
+                                    </button>
+                                    <pre id="curlCommand" class="bg-slate-800 text-slate-300 p-4 rounded-lg overflow-x-auto text-sm font-mono"></pre>
+                                </div>
+                            </div>
+                            
+                            <!-- Results -->
+                            <div id="resultDiv" class="hidden mt-8">
+                                <div id="resultHeader" class="flex items-center mb-3">
+                                    <i class="bi bi-robot text-primary mr-2"></i>
+                                    <h3 class="text-lg font-medium">Response</h3>
+                                </div>
+                                <div id="result" class="bg-slate-800 text-slate-300 p-6 rounded-lg overflow-x-auto result-content"></div>
+                                <img id="imageResult" class="hidden mt-6 rounded-lg max-w-full border border-slate-700" alt="Processed Image" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('questionForm');
+            const loading = document.getElementById('loading');
+            const resultDiv = document.getElementById('resultDiv');
+            const resultHeader = document.getElementById('resultHeader');
+            const result = document.getElementById('result');
+            const imageResult = document.getElementById('imageResult');
+            const generateCurlBtn = document.getElementById('generateCurl');
+            const curlCommandDiv = document.getElementById('curlCommandDiv');
+            const curlCommand = document.getElementById('curlCommand');
+            const copyBtn = document.getElementById('copyBtn');
+            const fileInput = document.getElementById('file');
+            const fileUrlInput = document.getElementById('fileUrl');
+            const recentResults = document.getElementById('recentResults');
+            
+            // Tab switching
+            const uploadTab = document.getElementById('upload-tab');
+            const urlTab = document.getElementById('url-tab');
+            const uploadTabPane = document.getElementById('upload-tab-pane');
+            const urlTabPane = document.getElementById('url-tab-pane');
+            
+            uploadTab.addEventListener('click', function() {
+                uploadTab.classList.add('text-white', 'bg-primary');
+                uploadTab.classList.remove('text-slate-300');
+                urlTab.classList.add('text-slate-300');
+                urlTab.classList.remove('text-white', 'bg-primary');
+                
+                uploadTabPane.classList.remove('hidden');
+                urlTabPane.classList.add('hidden');
+            });
+            
+            urlTab.addEventListener('click', function() {
+                urlTab.classList.add('text-white', 'bg-primary');
+                urlTab.classList.remove('text-slate-300');
+                uploadTab.classList.add('text-slate-300');
+                uploadTab.classList.remove('text-white', 'bg-primary');
+                
+                urlTabPane.classList.remove('hidden');
+                uploadTabPane.classList.add('hidden');
+            });
+            
+            // Generate cURL command
+            generateCurlBtn.addEventListener('click', function() {
+                const question = document.getElementById('question').value.trim();
+                if (!question) {
+                    alert('Please enter a question');
+                    return;
+                }
+                
+                // Check which file input is active
+                const isUrlTabActive = !urlTabPane.classList.contains('hidden');
+                let curlText = `curl -X POST \\\n  "${window.location.origin}/api/" \\\n  -F "question=${question}"`;
+                
+                if (!isUrlTabActive) {
+                    const file = fileInput.files[0];
+                    if (file) {
+                        curlText += ` \\\n  -F "file=@${file.name}"`;
+                    }
+                } else {
+                    const fileUrl = fileUrlInput.value.trim();
+                    if (fileUrl) {
+                        curlText += ` \\\n  -F "file=${fileUrl}"`;
+                    }
+                }
+                
+                // Hide any existing results
+                resultDiv.classList.add('hidden');
+                
+                // Show the curl command
+                curlCommand.textContent = curlText;
+                curlCommandDiv.classList.remove('hidden');
+            });
+            
+            // Copy cURL command
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(curlCommand.textContent)
+                    .then(() => {
+                        // Change button text
+                        copyBtn.innerHTML = '<i class="bi bi-check2 mr-1"></i> Copied!';
+                        copyBtn.classList.add('bg-green-600', 'text-white');
+                        copyBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                        
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="bi bi-clipboard mr-1"></i> Copy';
+                            copyBtn.classList.remove('bg-green-600', 'text-white');
+                            copyBtn.classList.add('bg-slate-800', 'text-slate-300');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy: ', err);
+                        alert('Failed to copy to clipboard');
+                    });
+            });
+            
+            // Form submission
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const question = document.getElementById('question').value.trim();
+                
+                if (!question) {
+                    alert('Please enter a question');
+                    return;
+                }
+                
+                // Check which file input is active
+                const isUrlTabActive = !urlTabPane.classList.contains('hidden');
+                let file = null;
+                let fileUrl = null;
+                
+                if (!isUrlTabActive) {
+                    file = fileInput.files[0];
+                } else {
+                    fileUrl = fileUrlInput.value.trim();
+                }
+                
+                // Check if this is likely an image compression request
+                const isCompressionRequest = 
+                    (question.toLowerCase().includes('compress') || 
+                     question.toLowerCase().includes('reduce size')) && 
+                    question.toLowerCase().includes('image') && 
+                    (question.toLowerCase().includes('lossless') || 
+                     question.toLowerCase().includes('identical'));
+                
+                // Hide previous results
+                resultDiv.classList.add('hidden');
+                curlCommandDiv.classList.add('hidden');
+                imageResult.classList.add('hidden');
+                
+                // Show loading spinner
+                loading.classList.remove('hidden');
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('question', question);
+                
+                if (file) {
+                    formData.append('file', file);
+                } else if (fileUrl) {
+                    formData.append('file', fileUrl);
+                }
+                
+                // Send request
+                fetch('/api/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Server error');
+                        });
+                    }
+                    
+                    // For image compression requests, we expect a file response
+                    if (isCompressionRequest && response.headers.get('content-type').includes('image')) {
+                        return response.blob().then(blob => {
+                            const imageUrl = URL.createObjectURL(blob);
+                            imageResult.src = imageUrl;
+                            imageResult.classList.remove('hidden');
+                            result.innerHTML = '<p>Image processed successfully. See below:</p>';
+                            // Set success header
+                            resultHeader.innerHTML = '<i class="bi bi-check-circle text-green-500 mr-2"></i><h3 class="text-lg font-medium">Success:</h3>';
+                            return { success: true, answer: 'Image processed successfully.' };
+                        });
+                    } else {
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    // Hide loading
+                    loading.classList.add('hidden');
+                    
+                    // Show result
+                    resultDiv.classList.remove('hidden');
+                    
+                    if (data.answer) {
+                        resultHeader.innerHTML = '<i class="bi bi-robot text-primary mr-2"></i><h3 class="text-lg font-medium">Response:</h3>';
+                        result.innerHTML = data.answer;
+                        
+                        // Add to recent results
+                        addToRecentResults(question, data.answer, true);
+                    } else if (data.error) {
+                        resultHeader.innerHTML = '<i class="bi bi-exclamation-triangle text-red-500 mr-2"></i><h3 class="text-lg font-medium">Error:</h3>';
+                        result.innerHTML = `<p>${data.error}</p>`;
+                        
+                        // Add to recent results
+                        addToRecentResults(question, data.error, false);
+                    } else if (!data.success) {
+                        resultHeader.innerHTML = '<i class="bi bi-info-circle text-blue-500 mr-2"></i><h3 class="text-lg font-medium">Response:</h3>';
+                        result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                        
+                        // Add to recent results
+                        addToRecentResults(question, 'Information returned', true);
+                    }
+                })
+                .catch(error => {
+                    // Hide loading
+                    loading.classList.add('hidden');
+                    
+                    // Show result with error
+                    resultDiv.classList.remove('hidden');
+                    resultHeader.innerHTML = '<i class="bi bi-exclamation-triangle text-red-500 mr-2"></i><h3 class="text-lg font-medium">Error:</h3>';
+                    result.innerHTML = `<p>${error.message || 'An error occurred'}</p>`;
+                    console.error('Error:', error);
+                    
+                    // Add to recent results
+                    addToRecentResults(question, error.message || 'An error occurred', false);
+                });
+            });
+            
+            // Function to add to recent results
+            function addToRecentResults(question, resultText, isSuccess) {
+                // Clear initial message if present
+                const initialMessage = recentResults.querySelector('.text-center.text-slate-500');
+                if (initialMessage) {
+                    recentResults.innerHTML = '';
+                }
+                
+                const resultEl = document.createElement('div');
+                resultEl.className = 'group bg-slate-800 p-3 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer animate__animated animate__fadeIn';
+                
+                const truncatedQuestion = question.length > 50 ? question.substring(0, 50) + '...' : question;
+                const truncatedResult = resultText.length > 70 ? resultText.substring(0, 70) + '...' : resultText;
+                
+                resultEl.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <i class="bi bi-${isSuccess ? 'robot' : 'exclamation-triangle'} text-${isSuccess ? 'primary' : 'red-500'}"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-slate-200 truncate">${truncatedQuestion}</p>
+                            <p class="text-xs text-slate-400 mt-1">${truncatedResult}</p>
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="text-xs text-slate-500">just now</span>
+                                <button class="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-slate-200 transition-opacity">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert at the top
+                if (recentResults.firstChild) {
+                    recentResults.insertBefore(resultEl, recentResults.firstChild);
+                } else {
+                    recentResults.appendChild(resultEl);
+                }
+                
+                // Remove oldest result if more than 5
+                const results = recentResults.querySelectorAll('.bg-slate-800');
+                if (results.length > 5) {
+                    results[results.length - 1].remove();
+                }
+            }
+
+            // Add keyboard shortcut for submission
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+Enter or Cmd+Enter to submit
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    if (document.activeElement === document.getElementById('question')) {
+                        document.getElementById('questionForm').dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+            
+            // Show file name when selected
+            fileInput.addEventListener('change', function() {
+                const fileLabel = document.querySelector('label[for="file"]');
+                if (fileInput.files.length > 0) {
+                    const fileName = fileInput.files[0].name;
+                    fileLabel.innerHTML = `
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="bi bi-file-earmark-check text-2xl text-primary mb-2"></i>
+                            <p class="text-sm text-slate-200 font-medium mb-1">${fileName}</p>
+                            <p class="text-xs text-slate-500">Click to change file</p>
+                        </div>
+                    `;
+                } else {
+                    fileLabel.innerHTML = `
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="bi bi-cloud-arrow-up text-2xl text-slate-400 mb-2"></i>
+                            <p class="mb-2 text-sm text-slate-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                            <p class="text-xs text-slate-500">CSV, Excel, Images (MAX. 10MB)</p>
+                        </div>
+                    `;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
